@@ -1,0 +1,699 @@
+---
+title: "Group 4"
+author: "Group 4"
+date: "7/27/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Introduction 
+
+Absa Group Limited (ABGL), formerly Barclays Africa Group Limited, and originally Amalgamated Banks of South Africa, is an African based financial services group, offering personal and business banking, credit cards, corporate and investment banking, wealth and investment management as well as bancassurance.
+
+The aim of this project is to create a machine learning (ML) algorithm that can be deployed by Absa Group Limited to predict defaulters before they are enrolled in credit services offered by the bank and result in reducing risk to the business.
+
+## 1.1 Research Question
+The Compliance department would like to understand their defaulters' behavior from data that they have collected. More specifically, they would like to learn the characteristics of defaulters.
+
+## 1.2 Metric for Success
+
+To design an ML algorithm that can predict whether a potential or existing customer will default on their credit card balance
+
+## 1.3 Context
+
+This dataset contains information on default payments, demographic factors, credit data, history of payment, and bill statements of credit card clients in Taiwan from April 2005 to September 2005.
+Content
+
+There are 25 variables:
+
+* ID: ID of each client
+* LIMIT_BAL: Amount of given credit in NT dollars (includes individual and family/supplementary credit
+* SEX: Gender (1=male, 2=female)
+* EDUCATION: (1=graduate school, 2=university, 3=high school, 4=others, 5=unknown, 6=unknown)
+* MARRIAGE: Marital status (1=married, 2=single, 3=others)
+* AGE: Age in years
+* PAY_0: Repayment status in September, 2005 (-1=pay duly, 1=payment delay for one month, 2=payment delay for two months, … 8=payment delay for eight months, 9=payment delay for nine months and above)
+* PAY_2: Repayment status in August, 2005 (scale same as above)
+* PAY_3: Repayment status in July, 2005 (scale same as above)
+* PAY_4: Repayment status in June, 2005 (scale same as above)
+* PAY_5: Repayment status in May, 2005 (scale same as above)
+* PAY_6: Repayment status in April, 2005 (scale same as above)
+* BILL_AMT1: Amount of bill statement in September, 2005 (NT dollar)
+* BILL_AMT2: Amount of bill statement in August, 2005 (NT dollar)
+* BILL_AMT3: Amount of bill statement in July, 2005 (NT dollar)
+* BILL_AMT4: Amount of bill statement in June, 2005 (NT dollar)
+* BILL_AMT5: Amount of bill statement in May, 2005 (NT dollar)
+* BILL_AMT6: Amount of bill statement in April, 2005 (NT dollar)
+* PAY_AMT1: Amount of previous payment in September, 2005 (NT dollar)
+* PAY_AMT2: Amount of previous payment in August, 2005 (NT dollar)
+* PAY_AMT3: Amount of previous payment in July, 2005 (NT dollar)
+* PAY_AMT4: Amount of previous payment in June, 2005 (NT dollar)
+* PAY_AMT5: Amount of previous payment in May, 2005 (NT dollar)
+* PAY_AMT6: Amount of previous payment in April, 2005 (NT dollar)
+* default.payment.next.month: Default payment (1=yes, 0=no)
+
+
+## 1.4 Appropriateness of Data
+
+# 2. Loading & Checking Dataset
+
+```{r}
+# Loading the dataset with into a dataframe
+
+# credit <- read.csv("UCI_Credit_Card.csv")
+credit <- read.csv("C:/Users/leonb/Desktop/lean/CORE IP/WK 15/UCI_Credit_Card.csv", header=TRUE)
+head(credit)
+
+```
+
+```{r}
+# Checking of dimensions for the dataset
+
+dim(credit)
+
+# We observe that the dataset has 25 columns and 30,000 rows
+```
+```{r}
+# Checking the structure and basic information of the dataset
+
+str(credit)
+
+# All our variables are numeric values i.e integers and numbers
+```
+# 3. Cleaning the Dataset
+
+```{r}
+# Checking if the dataset has duplicated values
+
+anyDuplicated(credit)
+
+# There are no duplicated values so no action is needed
+```
+```{r}
+# Checking for null values in the columns
+
+colSums(is.na(credit))
+
+# The dataset has no missing values
+```
+We need to rename the variables so that it is easy to interpret and understand the EDA
+```{r}
+
+# First we get the column names in the dataset
+
+colnames(credit)
+
+```
+```{r}
+# Renaming columns using dplyr 
+library(dplyr)
+
+credit <- credit %>% rename(Customer.ID = ID, Pay.Status.September = PAY_0, Pay.Status.August = PAY_2, Pay.Status.July = PAY_3, Pay.Status.June = PAY_4, Pay.Status.May = PAY_5, Pay.Status.April = PAY_6, Bill.September = BILL_AMT1, Bill.August = BILL_AMT2, Bill.July = BILL_AMT3, Bill.June = BILL_AMT4, Bill.May = BILL_AMT5, Bill.April = BILL_AMT6, Prev.Pay.September = PAY_AMT1, Prev.Pay.August = PAY_AMT2, Prev.Pay.July = PAY_AMT3, Prev.Pay.June = PAY_AMT4, Prev.Pay.May = PAY_AMT5, Prev.Pay.April = PAY_AMT6)
+
+colnames(credit)
+```
+
+```{r, fig.width=12, fig.height=5}
+# Creating boxplot to visualize the outliers
+
+boxplot(credit, horizontal=FALSE, main="Debtors Data")
+
+# There are 13 columns with outliers. We will not remove these outliers because they are have important information about our customers
+```
+Thirteen columns had several outliers and these are:
+
+* Limit_Balance - which represents the amount of credit given to the customer.
+* Six columns for Bill statement for the six months have outliers
+* Six columns for previous payment also have oultiers.
+
+
+```{r}
+# Function for removing the outliers
+# This functions uses interquantine range to remove the outliers
+
+remove_outliers <- function(x, na.rm = TRUE, ...) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = na.rm, ...)
+  H <- 1.5 * IQR(x, na.rm = na.rm)
+  y <- x
+  y[x < (qnt[1] - H)] <- NA
+  y[x > (qnt[2] + H)] <- NA
+  y
+}
+
+credit$LIMIT_BAL <- remove_outliers(credit$LIMIT_BAL)
+credit$Bill.September <- remove_outliers(credit$Bill.September)
+credit$Bill.August <- remove_outliers(credit$Bill.August)
+credit$Bill.July <- remove_outliers(credit$Bill.July)
+credit$Bill.June <- remove_outliers(credit$Bill.June)
+credit$Bill.May <- remove_outliers(credit$Bill.May)
+credit$Bill.April <- remove_outliers(credit$Bill.April)
+credit$Prev.Pay.September <- remove_outliers(credit$Prev.Pay.September)
+credit$Prev.Pay.August <- remove_outliers(credit$Prev.Pay.August)
+credit$Prev.Pay.July <- remove_outliers(credit$Prev.Pay.July)
+credit$Prev.Pay.June <- remove_outliers(credit$Prev.Pay.June)
+credit$Prev.Pay.May <- remove_outliers(credit$Prev.Pay.May)
+credit$Prev.Pay.April <- remove_outliers(credit$Prev.Pay.April)
+
+# Checking dimension of our dataset after removing outliers 
+
+dim(credit)
+```
+
+```{r, fig.width=12, fig.height=5}
+#Checking to see whether the outliers have been removed
+boxplot(credit, horizontal=FALSE, main="Debtors Data")
+
+# We can see that the outliers that would be problematic have been removed and only the relevant ones are left in the dataset
+```
+```{r}
+# Checking for null values in the columns
+# we can see that after removing outliers, we have gotten some missing values in our dataset
+
+colSums(is.na(credit))
+
+credit <- na.omit(credit)
+
+dim(credit)
+
+# Our dataset now has 19,731 rows and 25 columns
+```
+
+# 4. Exploratory Data Analysis
+
+```{r}
+# Getting a summary of out dataset
+
+summary(credit)
+
+```
+
+## 4.1 Univariate Analysis
+
+```{r}
+# Getting some descriptive statistics
+
+desc_stats <- data.frame(
+  Min = apply(credit, 2, min),    # minimum
+  Med = apply(credit, 2, median), # median
+  Mean = apply(credit, 2, mean),  # mean
+  SD = apply(credit, 2, sd),      # Standard deviation
+  Max = apply(credit, 2, max),     # Maximum
+  IQR = apply(credit, 2, IQR)
+ )
+desc_stats <- round(desc_stats, 1)
+
+desc_stats
+```
+From the descriptive statistics, we conclude that: (values are in NT dollars)
+* The average amount of credit given is NT$167,484
+* Min credit given to the credit card holders is NT$10,000 while maximum credit given was NT$1000,000
+* Minimum age of credit cardholders is 21 years while maximum age is 79 years. 
+
+```{r}
+# Getting variance for our columns
+
+library(dplyr)
+
+credit %>%
+  summarise_all(var)
+```
+
+
+```{r}
+# Displaying histograms for our variables 
+
+for(i in 2:25) {
+  hist(credit[, i], main=names(credit)[i], xlab = NULL)
+}
+```
+```{r}
+#We will plot bar graphs for some of the variables to establish their distributions
+
+library(ggplot2)
+ggplot(credit) + geom_bar(aes(x = LIMIT_BAL),fill = 'orange')
+ggplot(credit) + geom_bar(aes(x = AGE),fill = 'orange')
+ggplot(credit) + geom_bar(aes(x = SEX),fill = 'orange')
+ggplot(credit) + geom_bar(aes(x = EDUCATION),fill = 'orange')
+ggplot(credit) + geom_bar(aes(x = MARRIAGE),fill = 'orange')
+```
+From the bar graphs and histograms, it is evident that:
+
+* Most customers have a credit limit be between 0 and 200,000 NT$.
+* There are more female customers(2) compared to males(1). 
+* Most customers had reached University level of education, about 14,000 people, followed by graduate school(about 11,000) and high school(5000)
+* More than 16,000 customers were single compared to about 13,000 who were married.
+* Most people had a limit lower than 250000 NT dollars. Very few people had a limit above 500000 NT dollars. 
+* We can also observe that most of the customers were aged between 20 and 40 years, which could help explain why most poeple had low loan limits. 
+* Very few customers were aged between 60 and 80 years. 
+
+## 4.2 Bivariate Analysis
+
+We will try to establish relationships between loan defaulment and other variables
+
+
+
+```{r}
+###Group mean numerical columns by click on the click
+credit %>%
+  group_by(default.payment.next.month) %>%
+  summarise_if(is.numeric ,mean)
+
+```
+
+
+```{r}
+##checking relationship between Bill amount and the amount paid  
+library(ggplot2)
+
+ggplot(credit) +
+  geom_point(aes(x = Bill.September, y= Prev.Pay.September, color= default.payment.next.month )) 
+ggplot(credit) +
+  geom_point(aes(x = Bill.August, y= Prev.Pay.August, color= default.payment.next.month ))
+ggplot(credit) +
+  geom_point(aes(x = Bill.July, y= Prev.Pay.July, color= default.payment.next.month ))
+ggplot(credit) +  
+  geom_point(aes(x = Bill.June, y= Prev.Pay.June, color= default.payment.next.month ))
+ggplot(credit) +
+  geom_point(aes(x = Bill.May, y= Prev.Pay.May, color= default.payment.next.month ))
+ggplot(credit) +
+  geom_point(aes(x = Bill.April, y= Prev.Pay.April, color= default.payment.next.month ))
+
+```
+(1=yes, 0=no)
+
+```{r}
+##checking relationships between Limit balance and pay amount
+ggplot(credit) +
+  geom_point(aes(x = LIMIT_BAL, y= Prev.Pay.September, color= default.payment.next.month )) 
+ggplot(credit) +
+  geom_point(aes(x = LIMIT_BAL, y= Prev.Pay.August, color= default.payment.next.month ))
+ggplot(credit) +
+  geom_point(aes(x = LIMIT_BAL, y= Prev.Pay.July, color= default.payment.next.month ))
+ggplot(credit) +  
+  geom_point(aes(x = LIMIT_BAL, y= Prev.Pay.June, color= default.payment.next.month ))
+ggplot(credit) +
+  geom_point(aes(x = LIMIT_BAL, y= Prev.Pay.May, color= default.payment.next.month ))
+ggplot(credit) +
+  geom_point(aes(x = LIMIT_BAL, y= Prev.Pay.April, color= default.payment.next.month ))
+
+```
+###Correlation Matrix
+
+
+```{r}
+# find correlation between columns
+# Use r corr package
+library(dplyr)
+library(corrplot)
+library(Hmisc)
+
+df_num <- data.frame(select_if(credit, is.numeric) )
+res <- rcorr(as.matrix(df_num))
+corr <- data.frame(res$r)
+corr
+```
+```{r, fig.width=15, fig.height=15}
+###Create a correlation plot
+corrplot(res$r, type = "upper", order = "hclust",
+         tl.col = "black", tl.srt = 10)
+
+```
+### Covariance between variables
+```{r}
+covv <- data.frame(cov(df_num))
+covv
+```
+
+# 5. Feature Selection 
+
+## 5.1 Feature Selection using Filter Method
+
+```{r}
+library(caret)
+library(corrplot)
+
+# Fiding the correlation matrix
+
+correlationMatrix <- cor(credit)
+
+
+# getting the highly correlated variables
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff = 0.75)
+names(credit[,highlyCorrelated])
+
+```
+
+```{r}
+# Removing the highly correlated variables
+
+filtered_credit <- credit[-highlyCorrelated]
+
+head(filtered_credit)
+
+```
+
+# 6. Modelling
+```{r}
+# splitting data into 70% training data and 30% testing data
+intrain <- createDataPartition(y = filtered_credit$default.payment.next.month, p= 0.8, list = FALSE)
+training <- filtered_credit[intrain,]
+testing <- filtered_credit[-intrain,]
+```
+
+```{r}
+# We check the dimensions of out training dataframe and testing dataframe
+# ---
+# 
+dim(training); 
+
+dim(testing);
+
+```
+```{r}
+# We then clean the data using the anyNA() method that checks for any null values.
+# ---
+#  
+anyNA(filtered_credit)
+```
+[1] FALSE
+```{r}
+str(filtered_credit)
+```
+
+
+```{r}
+# From our output above, we can see that the values of the various variables are not standardized. 
+# For example, the default.payment.next.month variables, which is our target variable, it holds only 2 values, either 0 or 1.
+# This should be a categorical variable. To convert these to categorical variables, we need to factorize them.
+# The following code will convert the training data frame default.payment.next.month column to a factor variable.
+# ---
+# 
+
+training[["default.payment.next.month"]] = factor(training[["default.payment.next.month"]])
+
+```
+
+Before we train our model we will need to control all the computational overheads. 
+We will implement this through the trainControl() method. 
+This will allow us to use the train() function provided by the caret package. 
+
+## 6.1 Support Vector Machine
+```{r}
+# We are using setting number =10 and repeats =3
+# 
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+# installing necessary packages
+
+library(kernlab)
+library(e1071)
+# modelling
+
+svm_Linear <- train(default.payment.next.month ~., data = training, method = "svmLinear",
+trControl= ctrl,
+preProcess = c("center", "scale"),
+tuneLength = 10)
+
+
+```
+```{r}
+# We can then check the reult of our train() model as shown below
+# ---
+# 
+svm_Linear
+```
+Support Vector Machines with Linear Kernel 
+
+12210 samples
+   16 predictor
+    2 classes: '0', '1' 
+
+Pre-processing: centered (16), scaled (16) 
+Resampling: Cross-Validated (10 fold, repeated 3 times) 
+Summary of sample sizes: 10989, 10989, 10988, 10989, 10988, 10990, ... 
+Resampling results:
+
+  Accuracy   Kappa    
+  0.7733289  0.2961609
+
+Tuning parameter 'C' was held constant at a value of 1
+```{r}
+# We can use the predict() method for predicting results as shown below. 
+# We pass 2 arguements, our trained model and our testing data frame.
+# ---
+# 
+test_pred <- predict(svm_Linear, newdata = testing)
+test_pred
+```
+
+
+```{r}
+# Now checking for our accuracy of our model by using a confusion matrix 
+# ---
+# 
+confusionMatrix(table(test_pred, testing$default.payment.next.month))
+```
+Confusion Matrix and Statistics
+
+         
+test_pred    0    1
+        0 3626  988
+        1  203  415
+                                          
+               Accuracy : 0.7724          
+                 95% CI : (0.7608, 0.7837)
+    No Information Rate : 0.7318          
+    P-Value [Acc > NIR] : 9.569e-12       
+                                          
+                  Kappa : 0.2951          
+                                          
+ Mcnemar's Test P-Value : < 2.2e-16       
+                                          
+            Sensitivity : 0.9470          
+            Specificity : 0.2958          
+         Pos Pred Value : 0.7859          
+         Neg Pred Value : 0.6715          
+             Prevalence : 0.7318          
+         Detection Rate : 0.6930          
+   Detection Prevalence : 0.8819          
+      Balanced Accuracy : 0.6214          
+                                          
+       'Positive' Class : 0 
+
+```{r}
+y <- factor(testing$default.payment.next.month) # factor of positive / negative cases
+predictions <- factor(predict(model, test_pred))
+
+precision <- posPredValue(predictions, y, positive="1")
+recall <- sensitivity(predictions, y, positive="1")
+
+F1 <- (2 * precision * recall) / (precision + recall)
+F1
+```
+0.858936397
+
+
+      
+## 6.2 Naive Bayes
+```{r}
+# Checking dimensions of the split
+# ---
+#
+prop.table(table(filtered_credit$default.payment.next.month)) * 100
+prop.table(table(training$default.payment.next.month)) * 100
+prop.table(table(testing$default.payment.next.month)) * 100
+
+```
+       0        1 
+73.19688 26.80312 
+
+       0        1 
+73.20229 26.79771 
+
+       0        1 
+73.18425 26.81575 
+
+
+
+```{r}
+# Comparing the outcome of the training and testing phase
+# ---
+# Creating objects x which holds the predictor variables and y which holds the response variables
+# ---
+#
+x = training[,-17]
+y = training$default.payment.next.month
+
+```
+
+```{r}
+# Now building our model 
+# ---
+# 
+model = train(x,y,'nb',trControl=trainControl(method='cv',number=10))
+```
+
+```{r}
+# Model Evalution
+# ---
+# Predicting our testing set
+# 
+newdata <- testing
+Pred <- factor(predict(model, newdata))
+real <- factor(newdata$default.payment.next.month)
+
+my_data1 <- data.frame(data = Pred, type = "prediction")
+my_data2 <- data.frame(data = real, type = "real")
+my_data3 <- rbind(my_data1,my_data2)
+my_data3
+```
+
+
+```{r}
+# Check if the levels are identical
+identical(levels(my_data3[my_data3$type == "prediction",1]) , levels(my_data3[my_data3$type == "real",1]))
+
+confusionMatrix(my_data3[my_data3$type == "prediction",1], my_data3[my_data3$type == "real",1],  dnn = c("Prediction", "Reference"))
+```
+[1] TRUE
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    0    1
+         0 3353  773
+         1  476  630
+                                          
+               Accuracy : 0.7613          
+                 95% CI : (0.7495, 0.7728)
+    No Information Rate : 0.7318          
+    P-Value [Acc > NIR] : 6.275e-07       
+                                          
+                  Kappa : 0.3481          
+                                          
+ Mcnemar's Test P-Value : < 2.2e-16       
+                                          
+            Sensitivity : 0.8757          
+            Specificity : 0.4490          
+         Pos Pred Value : 0.8127          
+         Neg Pred Value : 0.5696          
+             Prevalence : 0.7318          
+         Detection Rate : 0.6409          
+   Detection Prevalence : 0.7886          
+      Balanced Accuracy : 0.6624
+```{r}
+y <- factor(newdata$default.payment.next.month) # factor of positive / negative cases
+predictions <- factor(predict(model, test_pred))
+
+precision <- posPredValue(predictions, y, positive="1")
+recall <- sensitivity(predictions, y, positive="1")
+
+F1 <- (2 * precision * recall) / (precision + recall)
+F1
+```
+0.842991829  
+      
+## 6.3 K- Nearest Neighbours
+```{r}
+set.seed(12)
+
+# Randomizing the rows, creates a uniform distribution of 17,000
+random <- runif(19000)
+credit_random <- filtered_credit[order(random),]
+
+# Selecting the first 6 rows from credit_random
+head(credit_random)
+```
+
+```{r}
+normal <- function(x) (
+  return( ((x - min(x)) /(max(x)-min(x))) )
+)
+normal(1:5)
+credit_new <- as.data.frame(lapply(credit_random[,-17], normal))
+summary(credit_new)
+```
+
+```{r}
+# Lets now create test and train data sets
+
+train <- credit_new[1:15200,]
+test <- credit_new[15201:19000,]
+train_sp <- credit_random[1:15200,17]
+test_sp <- credit_random[15201:19000,17]
+
+```
+
+```{r}
+# Now we can use the K-NN algorithm. Lets call the "class" package which contains the K-NN algorithm.
+# We then have to provide 'k' value which is no of nearest neighbours(NN) to look for 
+# in order to classify the test data point.
+# Lets build a model on it; cl is the class of the training data set and k is the no of neighbours to look for 
+# in order to classify it accordingly.
+
+library(class)    
+require(class)
+model <- knn(train= train,test=test, ,cl= train_sp,k=13)
+
+table(factor(model))
+table(test_sp,model)
+
+```
+
+```{r}
+library(caret)
+
+y <- factor() # factor of positive / negative cases
+predictions <- factor(predict(model, test_sp))
+
+precision <- posPredValue(predictions, y, positive="1")
+recall <- sensitivity(predictions, y, positive="1")
+
+F1 <- (2 * precision * recall) / (precision + recall)
+F1
+```
+0.859798109
+
+
+```{r}
+confusionMatrix(table(test_sp,model))
+```
+Confusion Matrix and Statistics
+
+       model
+test_sp    0    1
+      0 2683  131
+      1  744  242
+                                        
+               Accuracy : 0.7697        
+                 95% CI : (0.756, 0.783)
+    No Information Rate : 0.9018        
+    P-Value [Acc > NIR] : 1             
+                                        
+                  Kappa : 0.2492        
+                                        
+ Mcnemar's Test P-Value : <2e-16        
+                                        
+            Sensitivity : 0.7829        
+            Specificity : 0.6488        
+         Pos Pred Value : 0.9534        
+         Neg Pred Value : 0.2454        
+             Prevalence : 0.9018        
+         Detection Rate : 0.7061        
+   Detection Prevalence : 0.7405        
+      Balanced Accuracy : 0.7158        
+                                        
+       'Positive' Class : 0 
+       
+       
+# 7. Conclusion 
+SVM & KNN both performed well but SVM was much better because it had a higher accuracy score than the rest. The Support Vector Machine model produced a 77.24% accuracy score and F1 Score of 85.89% while K-Nearest Neighbours had a 76.97 accuracy score and F1 score of 85.97%.
+
+# 8. Recommendation
+We would recommend that our clients use SVM because:
+- Does not require alot of computational power/ time
+- Was the best performing model among the three
+
+ 
